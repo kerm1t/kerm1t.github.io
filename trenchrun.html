@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Death Star Trench Run</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-family: Arial, sans-serif;
+            pointer-events: none;
+        }
+        #target {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin-left: -10px;
+            margin-top: -10px;
+            border: 2px solid red;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        #cockpit {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 35%;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Use W,A,S,D keys or arrow keys to adjust flight path. Space to fire.</div>
+    <div id="target"></div>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.module.js"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+
+        // Setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x333333);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(0, 1, 0);
+        scene.add(directionalLight);
+
+        // Death Star Trench
+        const trenchLength = 300;
+        const trenchWidth = 10;
+        const trenchHeight = 8;
+        const trenchGroup = new THREE.Group();
+        scene.add(trenchGroup);
+
+        // Trench floor
+        const floorGeometry = new THREE.PlaneGeometry(trenchWidth, trenchLength);
+        const floorMaterial = new THREE.MeshPhongMaterial({
+            color: 0x444444,
+            side: THREE.DoubleSide
+        });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = Math.PI / 2;
+        floor.position.z = -trenchLength / 2;
+        trenchGroup.add(floor);
+
+        // Trench walls
+        const wallGeometry = new THREE.PlaneGeometry(trenchLength, trenchHeight);
+        const wallMaterial = new THREE.MeshPhongMaterial({
+            color: 0xbbbbbb,
+            side: THREE.DoubleSide
+        });
+        
+        // Left wall
+        const leftWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        leftWall.rotation.y = Math.PI / 2;
+        leftWall.position.x = -trenchWidth / 2;
+        leftWall.position.z = -trenchLength / 2;
+        leftWall.position.y = trenchHeight / 2;
+        trenchGroup.add(leftWall);
+
+        // Right wall
+        const rightWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        rightWall.rotation.y = -Math.PI / 2;
+        rightWall.position.x = trenchWidth / 2;
+        rightWall.position.z = -trenchLength / 2;
+        rightWall.position.y = trenchHeight / 2;
+        trenchGroup.add(rightWall);
+
+        // Create wall details
+        const detailSize = 0.5;
+        const wallDetails = 600;
+        
+        for (let i = 0; i < wallDetails; i++) {
+            const boxGeometry = new THREE.BoxGeometry(detailSize, detailSize, detailSize);
+            const boxMaterial = new THREE.MeshPhongMaterial({
+                color: Math.random() > 0.5 ? 0x555555 : 0x999999
+            });
+            const box = new THREE.Mesh(boxGeometry, boxMaterial);
+            
+            // Random position on either wall
+            const isLeftWall = Math.random() > 0.5;
+            box.position.x = isLeftWall ? -trenchWidth / 2 + detailSize/2 : trenchWidth / 2 - detailSize/2;
+            box.position.y = Math.random() * trenchHeight;
+            box.position.z = -Math.random() * trenchLength;
+            
+            trenchGroup.add(box);
+        }
+
+        // Add some obstacles in the trench
+        const obstacleCount = 10;
+        const obstacles = [];
+        
+        for (let i = 0; i < obstacleCount; i++) {
+            const obstacleGeometry = new THREE.BoxGeometry(1, 2, 0.5);
+            const obstacleMaterial = new THREE.MeshPhongMaterial({
+                color: 0x999999
+            });
+            const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
+            
+            // Position randomly but avoid player starting area
+            obstacle.position.x = (Math.random() - 0.5) * (trenchWidth - 2);
+            obstacle.position.y = 2;
+            obstacle.position.z = -50 - Math.random() * (trenchLength - 100);
+            
+            obstacles.push(obstacle);
+            trenchGroup.add(obstacle);
+        }
+
+        // Create exhaust port target at the end
+        const targetGeometry = new THREE.CylinderGeometry(1, 1, 0.5, 32);
+        const targetMaterial = new THREE.MeshPhongMaterial({
+            color: 0xff0000,
+            emissive: 0xff0000,
+            emissiveIntensity: 0.5
+        });
+        const target = new THREE.Mesh(targetGeometry, targetMaterial);
+        target.rotation.x = Math.PI / 2;
+        target.position.z = -trenchLength + 2;
+        target.position.y = 0.5;
+        trenchGroup.add(target);
+
+        // Lasers
+        const lasers = [];
+        const laserGeometry = new THREE.CylinderGeometry(0.1, 0.1, 2, 8);
+        const laserMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ff00
+        });
+
+        // Cockpit overlay
+        const cockpitElement = document.createElement('div');
+        cockpitElement.id = 'cockpit';
+        document.body.appendChild(cockpitElement);
+
+        // Create SVG cockpit interior
+        const cockpitSVG = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        cockpitSVG.setAttribute('width', '100%');
+        cockpitSVG.setAttribute('height', '100%');
+        cockpitSVG.setAttribute('viewBox', '0 0 1000 500');
+        cockpitSVG.style.position = 'absolute';
+        cockpitSVG.style.bottom = '0';
+        cockpitElement.appendChild(cockpitSVG);
+
+        // Left cockpit frame
+        const leftFrame = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        leftFrame.setAttribute('d', 'M0,0 L200,250 L200,500 L0,500 Z');
+        leftFrame.setAttribute('fill', '#333333');
+        leftFrame.setAttribute('stroke', '#666666');
+        leftFrame.setAttribute('stroke-width', '3');
+        cockpitSVG.appendChild(leftFrame);
+
+        // Right cockpit frame
+        const rightFrame = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        rightFrame.setAttribute('d', 'M1000,0 L800,250 L800,500 L1000,500 Z');
+        rightFrame.setAttribute('fill', '#333333');
+        rightFrame.setAttribute('stroke', '#666666');
+        rightFrame.setAttribute('stroke-width', '3');
+        cockpitSVG.appendChild(rightFrame);
+
+        // Bottom cockpit frame
+        const bottomFrame = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        bottomFrame.setAttribute('d', 'M200,400 L800,400 L800,500 L200,500 Z');
+        bottomFrame.setAttribute('fill', '#333333');
+        bottomFrame.setAttribute('stroke', '#666666');
+        bottomFrame.setAttribute('stroke-width', '3');
+        cockpitSVG.appendChild(bottomFrame);
+
+        // Cockpit details - control panel
+        const controlPanel = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        controlPanel.setAttribute('x', '350');
+        controlPanel.setAttribute('y', '410');
+        controlPanel.setAttribute('width', '300');
+        controlPanel.setAttribute('height', '80');
+        controlPanel.setAttribute('fill', '#222222');
+        controlPanel.setAttribute('stroke', '#666666');
+        controlPanel.setAttribute('stroke-width', '2');
+        controlPanel.setAttribute('rx', '5');
+        cockpitSVG.appendChild(controlPanel);
+
+        // Add some buttons and lights to control panel
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'];
+        for (let i = 0; i < 5; i++) {
+            const indicator = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            indicator.setAttribute('cx', (380 + i * 50).toString());
+            indicator.setAttribute('cy', '430');
+            indicator.setAttribute('r', '10');
+            indicator.setAttribute('fill', colors[i]);
+            cockpitSVG.appendChild(indicator);
+            
+            // Blinking effect
+            if (i === 0 || i === 2) {
+                setInterval(() => {
+                    const currentOpacity = indicator.getAttribute('fill-opacity') || '1';
+                    indicator.setAttribute('fill-opacity', currentOpacity === '1' ? '0.3' : '1');
+                }, 1000 + i * 500);
+            }
+        }
+
+        // Add some dashboard screens
+        for (let i = 0; i < 2; i++) {
+            const screen = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            screen.setAttribute('x', (400 + i * 120).toString());
+            screen.setAttribute('y', '450');
+            screen.setAttribute('width', '80');
+            screen.setAttribute('height', '30');
+            screen.setAttribute('fill', '#224455');
+            screen.setAttribute('stroke', '#666666');
+            screen.setAttribute('stroke-width', '1');
+            cockpitSVG.appendChild(screen);
+            
+            // Add screen details
+            const screenLine1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            screenLine1.setAttribute('x1', (410 + i * 120).toString());
+            screenLine1.setAttribute('y1', '460');
+            screenLine1.setAttribute('x2', (470 + i * 120).toString());
+            screenLine1.setAttribute('y2', '460');
+            screenLine1.setAttribute('stroke', '#00ff00');
+            screenLine1.setAttribute('stroke-width', '1');
+            cockpitSVG.appendChild(screenLine1);
+            
+            const screenLine2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            screenLine2.setAttribute('x1', (410 + i * 120).toString());
+            screenLine2.setAttribute('y1', '470');
+            screenLine2.setAttribute('x2', (450 + i * 120).toString());
+            screenLine2.setAttribute('y2', '470');
+            screenLine2.setAttribute('stroke', '#00ff00');
+            screenLine2.setAttribute('stroke-width', '1');
+            cockpitSVG.appendChild(screenLine2);
+        }
+
+        // Add targeting reticle overlay
+        const reticle = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        cockpitSVG.appendChild(reticle);
+        
+        const outerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        outerCircle.setAttribute('cx', '500');
+        outerCircle.setAttribute('cy', '250');
+        outerCircle.setAttribute('r', '30');
+        outerCircle.setAttribute('fill', 'none');
+        outerCircle.setAttribute('stroke', '#ff0000');
+        outerCircle.setAttribute('stroke-width', '1');
+        outerCircle.setAttribute('stroke-opacity', '0.7');
+        reticle.appendChild(outerCircle);
+        
+        const innerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        innerCircle.setAttribute('cx', '500');
+        innerCircle.setAttribute('cy', '250');
+        innerCircle.setAttribute('r', '10');
+        innerCircle.setAttribute('fill', 'none');
+        innerCircle.setAttribute('stroke', '#ff0000');
+        innerCircle.setAttribute('stroke-width', '1');
+        innerCircle.setAttribute('stroke-opacity', '0.7');
+        reticle.appendChild(innerCircle);
+        
+        const horizontalLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        horizontalLine.setAttribute('x1', '470');
+        horizontalLine.setAttribute('y1', '250');
+        horizontalLine.setAttribute('x2', '530');
+        horizontalLine.setAttribute('y2', '250');
+        horizontalLine.setAttribute('stroke', '#ff0000');
+        horizontalLine.setAttribute('stroke-width', '1');
+        horizontalLine.setAttribute('stroke-opacity', '0.7');
+        reticle.appendChild(horizontalLine);
+        
+        const verticalLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        verticalLine.setAttribute('x1', '500');
+        verticalLine.setAttribute('y1', '220');
+        verticalLine.setAttribute('x2', '500');
+        verticalLine.setAttribute('y2', '280');
+        verticalLine.setAttribute('stroke', '#ff0000');
+        verticalLine.setAttribute('stroke-width', '1');
+        verticalLine.setAttribute('stroke-opacity', '0.7');
+        reticle.appendChild(verticalLine);
+
+        // Add X-Wing joystick
+        const joystick = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        cockpitSVG.appendChild(joystick);
+        
+        const joystickBase = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        joystickBase.setAttribute('cx', '500');
+        joystickBase.setAttribute('cy', '480');
+        joystickBase.setAttribute('rx', '40');
+        joystickBase.setAttribute('ry', '15');
+        joystickBase.setAttribute('fill', '#333333');
+        joystickBase.setAttribute('stroke', '#666666');
+        joystickBase.setAttribute('stroke-width', '2');
+        joystick.appendChild(joystickBase);
+        
+        const joystickStick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        joystickStick.setAttribute('x1', '500');
+        joystickStick.setAttribute('y1', '480');
+        joystickStick.setAttribute('x2', '500');
+        joystickStick.setAttribute('y2', '440');
+        joystickStick.setAttribute('stroke', '#666666');
+        joystickStick.setAttribute('stroke-width', '3');
+        joystick.appendChild(joystickStick);
+        
+        const joystickHandle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        joystickHandle.setAttribute('cx', '500');
+        joystickHandle.setAttribute('cy', '440');
+        joystickHandle.setAttribute('r', '10');
+        joystickHandle.setAttribute('fill', '#ff0000');
+        joystickHandle.setAttribute('stroke', '#999999');
+        joystickHandle.setAttribute('stroke-width', '2');
+        joystick.appendChild(joystickHandle);
+
+        // Player movement
+        let velocity = new THREE.Vector3(0, 0, -0.5); // Initial forward speed
+        const maxSpeed = 0.7;
+        let playerPos = new THREE.Vector3(0, 2, 20);
+        camera.position.copy(playerPos);
+        camera.lookAt(0, 2, -100);
+
+        // Controls
+        const keys = {};
+        
+        document.addEventListener('keydown', (event) => {
+            keys[event.key.toLowerCase()] = true;
+            
+            // Fire laser with spacebar
+            if (event.code === 'Space') {
+                fireLaser();
+            }
+        });
+        
+        document.addEventListener('keyup', (event) => {
+            keys[event.key.toLowerCase()] = false;
+        });
+        
+        // Update joystick position based on controls
+        function updateJoystickPosition() {
+            let joystickX = 500;
+            let joystickY = 440;
+            
+            if (keys['a'] || keys['arrowleft']) {
+                joystickX = 485;
+            } else if (keys['d'] || keys['arrowright']) {
+                joystickX = 515;
+            }
+            
+            if (keys['w'] || keys['arrowup']) {
+                joystickY = 425;
+            } else if (keys['s'] || keys['arrowdown']) {
+                joystickY = 455;
+            }
+            
+            joystickStick.setAttribute('x2', joystickX.toString());
+            joystickStick.setAttribute('y2', joystickY.toString());
+            joystickHandle.setAttribute('cx', joystickX.toString());
+            joystickHandle.setAttribute('cy', joystickY.toString());
+        }
+        
+        // Fire laser function
+        function fireLaser() {
+            const laser = new THREE.Mesh(laserGeometry, laserMaterial);
+            laser.rotation.x = Math.PI / 2;
+            laser.position.copy(playerPos);
+            laser.userData.velocity = new THREE.Vector3(0, 0, -2);
+            laser.userData.lifespan = 100;
+            lasers.push(laser);
+            scene.add(laser);
+            
+            // Flash targeting reticle
+            reticle.setAttribute('opacity', '1');
+            setTimeout(() => {
+                reticle.setAttribute('opacity', '0.7');
+            }, 100);
+        }
+        
+        // Explosion effect
+        function createExplosion(position) {
+            const particleCount = 30;
+            const explosionGroup = new THREE.Group();
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particleGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+                const particleMaterial = new THREE.MeshBasicMaterial({
+                    color: Math.random() > 0.5 ? 0xff5500 : 0xffff00
+                });
+                const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                
+                // Random position within explosion radius
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * 0.2;
+                particle.position.set(
+                    position.x + Math.cos(angle) * radius,
+                    position.y + (Math.random() - 0.5) * radius,
+                    position.z + Math.sin(angle) * radius
+                );
+                
+                // Random velocity outward
+                particle.userData.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.3,
+                    (Math.random() - 0.5) * 0.3,
+                    (Math.random() - 0.5) * 0.3
+                );
+                
+                particle.userData.lifespan = 20 + Math.random() * 30;
+                
+                explosionGroup.add(particle);
+            }
+            
+            explosionGroup.userData.type = 'explosion';
+            explosionGroup.userData.particles = explosionGroup.children;
+            scene.add(explosionGroup);
+            
+            return explosionGroup;
+        }
+        
+        // Explosions array
+        const explosions = [];
+
+        // Resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        let gameOver = false;
+        let victory = false;
+        const infoElement = document.getElementById('info');
+
+        function checkCollisions() {
+            // Laser-obstacle collisions
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                const laser = lasers[i];
+                
+                // Check collisions with obstacles
+                for (let j = obstacles.length - 1; j >= 0; j--) {
+                    const obstacle = obstacles[j];
+                    const obstacleBox = new THREE.Box3().setFromObject(obstacle);
+                    
+                    if (obstacleBox.containsPoint(laser.position)) {
+                        // Create explosion
+                        const explosion = createExplosion(obstacle.position);
+                        explosions.push(explosion);
+                        
+                        // Remove obstacle and laser
+                        trenchGroup.remove(obstacle);
+                        obstacles.splice(j, 1);
+                        scene.remove(laser);
+                        lasers.splice(i, 1);
+                        break;
+                    }
+                }
+                
+                // Check collision with target
+                const targetBox = new THREE.Box3().setFromObject(target);
+                if (targetBox.containsPoint(laser.position)) {
+                    // Victory!
+                    const explosion = createExplosion(target.position);
+                    explosions.push(explosion);
+                    trenchGroup.remove(target);
+                    scene.remove(laser);
+                    lasers.splice(i, 1);
+                    victory = true;
+                    infoElement.textContent = "Great shot! That was one in a million!";
+                    break;
+                }
+            }
+            
+            // Player-obstacle collisions
+            for (let i = 0; i < obstacles.length; i++) {
+                const obstacle = obstacles[i];
+                const obstacleBox = new THREE.Box3().setFromObject(obstacle);
+                
+                if (obstacleBox.containsPoint(playerPos)) {
+                    // Game over
+                    const explosion = createExplosion(playerPos);
+                    explosions.push(explosion);
+                    gameOver = true;
+                    infoElement.textContent = "You've been hit! Press R to restart";
+                    cockpitElement.style.display = 'none';
+                    break;
+                }
+            }
+            
+            // Player-wall collisions
+            if (Math.abs(playerPos.x) > trenchWidth / 2 - 0.5) {
+                // Hit wall
+                const explosion = createExplosion(playerPos);
+                explosions.push(explosion);
+                gameOver = true;
+                infoElement.textContent = "You crashed into the wall! Press R to restart";
+                cockpitElement.style.display = 'none';
+            }
+        }
+
+        // Restart game
+        document.addEventListener('keydown', (event) => {
+            if (event.key.toLowerCase() === 'r' && (gameOver || victory)) {
+                // Reset player
+                playerPos.set(0, 2, 20);
+                velocity.set(0, 0, -0.5);
+                
+                // Show cockpit again
+                cockpitElement.style.display = 'block';
+                
+                // Clear lasers
+                for (let i = lasers.length - 1; i >= 0; i--) {
+                    scene.remove(lasers[i]);
+                }
+                lasers.length = 0;
+                
+                // Clear explosions
+                for (let i = explosions.length - 1; i >= 0; i--) {
+                    scene.remove(explosions[i]);
+                }
+                explosions.length = 0;
+                
+                // Reset obstacles if they were destroyed
+                if (obstacles.length < obstacleCount || victory) {
+                    // Recreate obstacles and target
+                    for (let i = obstacles.length - 1; i >= 0; i--) {
+                        trenchGroup.remove(obstacles[i]);
+                    }
+                    obstacles.length = 0;
+                    
+                    for (let i = 0; i < obstacleCount; i++) {
+                        const obstacleGeometry = new THREE.BoxGeometry(1, 2, 0.5);
+                        const obstacleMaterial = new THREE.MeshPhongMaterial({
+                            color: 0x999999
+                        });
+                        const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
+                        
+                        obstacle.position.x = (Math.random() - 0.5) * (trenchWidth - 2);
+                        obstacle.position.y = 2;
+                        obstacle.position.z = -50 - Math.random() * (trenchLength - 100);
+                        
+                        obstacles.push(obstacle);
+                        trenchGroup.add(obstacle);
+                    }
+                    
+                    // Recreate target if it was destroyed
+                    if (victory) {
+                        trenchGroup.add(target);
+                    }
+                }
+                
+                gameOver = false;
+                victory = false;
+                infoElement.textContent = "Use W,A,S,D keys or arrow keys to adjust flight path. Space to fire.";
+            }
+        });
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update player position if not game over
+            if (!gameOver && !victory) {
+                // Handle keyboard input
+                const moveSpeed = 0.05;
+                
+                // Forward/backward (W/S or ArrowUp/ArrowDown)
+                if ((keys['w'] || keys['arrowup']) && velocity.z > -maxSpeed) {
+                    velocity.z -= 0.01;
+                }
+                if ((keys['s'] || keys['arrowdown']) && velocity.z < -0.1) {
+                    velocity.z += 0.01;
+                }
+                
+                // Left/right (A/D or ArrowLeft/ArrowRight)
+                if (keys['a'] || keys['arrowleft']) {
+                    velocity.x = Math.max(velocity.x - moveSpeed, -0.3);
+                } else if (keys['d'] || keys['arrowright']) {
+                    velocity.x = Math.min(velocity.x + moveSpeed, 0.3);
+                } else {
+                    // Gradually return to center
+                    velocity.x *= 0.9;
+                }
+                
+                // Apply velocity
+                playerPos.add(velocity);
+                
+                // Keep within bounds
+                playerPos.x = Math.max(Math.min(playerPos.x, trenchWidth/2 - 0.5), -trenchWidth/2 + 0.5);
+                
+                // Update camera
+                camera.position.copy(playerPos);
+                camera.lookAt(playerPos.x * 3, playerPos.y, playerPos.z - 10);
+                
+                // Update cockpit joystick based on controls
+                updateJoystickPosition();
+                
+                // Check collisions
+                checkCollisions();
+            }
+            
+            // Update lasers
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                const laser = lasers[i];
+                laser.position.add(laser.userData.velocity);
+                laser.userData.lifespan--;
+                
+                if (laser.userData.lifespan <= 0) {
+                    scene.remove(laser);
+                    lasers.splice(i, 1);
+                }
+            }
+            
+            // Update explosions
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const explosion = explosions[i];
+                let allParticlesExpired = true;
+                
+                explosion.userData.particles.forEach(particle => {
+                    if (particle.userData.lifespan > 0) {
+                        particle.position.add(particle.userData.velocity);
+                        particle.userData.lifespan--;
+                        allParticlesExpired = false;
+                        
+                        // Scale down as lifespan decreases
+                        const scale = particle.userData.lifespan / 50;
+                        particle.scale.set(scale, scale, scale);
+                    } else {
+                        explosion.remove(particle);
+                    }
+                });
+                
+                if (allParticlesExpired) {
+                    scene.remove(explosion);
+                    explosions.splice(i, 1);
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+    </script>
+</body>
+</html>
