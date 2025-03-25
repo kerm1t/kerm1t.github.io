@@ -49,9 +49,19 @@
             }
         }
     </script>
+	<script src="https://cdn.jsdelivr.net/npm/nipplejs@0.10.2/dist/nipplejs.min.js">
+	//		var dynamic = nipplejs.create({
+//			zone: document.getElementById('dynamic'),
+//			color: 'blue'
+//		});
+		var options = {
+			zone: document.getElementById('zone_joystick'),
+		};
+		var manager = nipplejs.create(options);
+	</script>
     <script type="module">
         import * as THREE from 'three';
-
+	
         // Setup
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
