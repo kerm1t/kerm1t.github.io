@@ -49,16 +49,36 @@
             }
         }
     </script>
-<!--	<script src="https://cdn.jsdelivr.net/npm/nipplejs@0.10.2/dist/nipplejs.min.js"></script>
-	<script>
-	    var dynamic = nipplejs.create({
-			zone: document.getElementById('dynamic'),
-			color: 'blue'
-	    });
-	</script>
--->
-	<script type="module" src="virtual-joystick.js"></script>
-	<script type="module">
+	<script src='virtualjoystick.js'></script>
+    <script type="module">
+
+// https://github.com/jeromeetienne/virtualjoystick.js
+		console.log("touchscreen is", VirtualJoystick.touchScreenAvailable() ? "available" : "not available");
+
+		var vjoystick = new VirtualJoystick({
+			container: document.getElementById('container'),
+			mouseSupport: true,
+		});
+		vjoystick.addEventListener('touchStart', function(){
+			console.log('down')
+		})
+		vjoystick.addEventListener('touchEnd', function(){
+			console.log('up')
+		})
+/*
+		setInterval(function(){
+			var outputEl	= document.getElementById('result');
+			outputEl.innerHTML	= '<b>Result:</b> '
+				+ ' dx:'+joystick.deltaX()
+				+ ' dy:'+joystick.deltaY()
+				+ (joystick.right()	? ' right'	: '')
+				+ (joystick.up()	? ' up'		: '')
+				+ (joystick.left()	? ' left'	: '')
+				+ (joystick.down()	? ' down' 	: '')	
+		}, 1/30 * 1000);
+*/
+
+
         import * as THREE from 'three';
 	
         // Setup
@@ -604,18 +624,19 @@
                 const moveSpeed = 0.05;
                 
                 // Forward/backward (W/S or ArrowUp/ArrowDown)
-                if ((keys['w'] || keys['arrowup']) && velocity.z > -maxSpeed) {
+                if ((keys['w'] || keys['arrowup'] || vjoystick.up()) && velocity.z > -maxSpeed) {
                     velocity.z -= 0.01;
                 }
-                if ((keys['s'] || keys['arrowdown']) && velocity.z < -0.1) {
+                if ((keys['s'] || keys['arrowdown'] || vjoystick.down()) && velocity.z < -0.1) {
                     velocity.z += 0.01;
                 }
-                
+                let steer_speed = 0.1;//0.3
+				
                 // Left/right (A/D or ArrowLeft/ArrowRight)
-                if (keys['a'] || keys['arrowleft']) {
-                    velocity.x = Math.max(velocity.x - moveSpeed, -0.3);
-                } else if (keys['d'] || keys['arrowright']) {
-                    velocity.x = Math.min(velocity.x + moveSpeed, 0.3);
+                if (keys['a'] || keys['arrowleft'] || vjoystick.left()) {
+                    velocity.x = Math.max(velocity.x - moveSpeed, -steer_speed);
+                } else if (keys['d'] || keys['arrowright'] || vjoystick.right()) {
+                    velocity.x = Math.min(velocity.x + moveSpeed, steer_speed);
                 } else {
                     // Gradually return to center
                     velocity.x *= 0.9;
@@ -680,13 +701,5 @@
         
         animate();
     </script>
-	<div class="joystick-container" id="semi">
-	    <h2>Semi</h2>
-	    <div class="playground dynamic">
-			<virtual-joystick data-mode="semi"></virtual-joystick>
-	    </div>
-	    <div class="output"></div>
-	</div>
-
 </body>
 </html>
