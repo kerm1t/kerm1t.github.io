@@ -624,10 +624,10 @@
                 const moveSpeed = 0.05;
                 
                 // Forward/backward (W/S or ArrowUp/ArrowDown)
-                if ((keys['w'] || keys['arrowup'] || vjoystick.up()) && velocity.z > -maxSpeed) {
+                if ((keys['w'] || keys['arrowup']) && velocity.z > -maxSpeed) {
                     velocity.z -= 0.01;
                 }
-                if ((keys['s'] || keys['arrowdown'] || vjoystick.down()) && velocity.z < -0.1) {
+                if ((keys['s'] || keys['arrowdown']) && velocity.z < -0.1) {
                     velocity.z += 0.01;
                 }
                 let steer_speed = 0.1;//0.3
