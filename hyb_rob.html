@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Death Star Trench Run</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-family: Arial, sans-serif;
+            pointer-events: none;
+        }
+        #target {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin-left: -10px;
+            margin-top: -10px;
+            border: 2px solid red;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        #cockpit {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 35%;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.module.js"
+            }
+        }
+    </script>
+    <script type="module">
+// Comic-Style Pair of 2D Eyes Animation with Three.js
+import * as THREE from 'three';
+
+// Initialize the scene, camera, and renderer
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-6, 6, 3, -3, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0xf0f0f0); // Light gray background
+document.body.appendChild(renderer.domElement);
+
+// Set up camera position
+camera.position.z = 5;
+
+// Create a face background (optional)
+const faceGeometry = new THREE.CircleGeometry(5, 32);
+const faceMaterial = new THREE.MeshBasicMaterial({ 
+  color: 0xffddcc, // Skin tone
+  side: THREE.DoubleSide
+});
+const face = new THREE.Mesh(faceGeometry, faceMaterial);
+face.position.z = -0.1;
+scene.add(face);
+
+// Function to create a single eye
+function createEye(x) {
+  const eyeGroup = new THREE.Group();
+  eyeGroup.position.x = x; // Position left or right
+  scene.add(eyeGroup);
+  
+  // Eye outline (black circle)
+  const outlineGeometry = new THREE.CircleGeometry(1.5, 32);
+  const outlineMaterial = new THREE.MeshBasicMaterial({ 
+    color: 0x000000,
+    side: THREE.DoubleSide
+  });
+  const outline = new THREE.Mesh(outlineGeometry, outlineMaterial);
+  eyeGroup.add(outline);
+  
+  // Eye white (slightly smaller white circle)
+  const whiteGeometry = new THREE.CircleGeometry(1.4, 32);
+  const whiteMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    side: THREE.DoubleSide
+  });
+  const eyeWhite = new THREE.Mesh(whiteGeometry, whiteMaterial);
+  eyeWhite.position.z = 0.1;
+  eyeGroup.add(eyeWhite);
+  
+  // Iris (colored part)
+  const irisGeometry = new THREE.CircleGeometry(0.7, 32);
+  const irisMaterial = new THREE.MeshBasicMaterial({
+    color: 0x3366cc, // Blue iris
+    side: THREE.DoubleSide
+  });
+  const iris = new THREE.Mesh(irisGeometry, irisMaterial);
+  iris.position.z = 0.2;
+  
+  // Pupil (black center)
+  const pupilGeometry = new THREE.CircleGeometry(0.4, 32);
+  const pupilMaterial = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    side: THREE.DoubleSide
+  });
+  const pupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+  pupil.position.z = 0.3;
+  
+  // Add a small white highlight dot
+  const highlightGeometry = new THREE.CircleGeometry(0.12, 16);
+  const highlightMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    side: THREE.DoubleSide
+  });
+  const highlight = new THREE.Mesh(highlightGeometry, highlightMaterial);
+  highlight.position.set(-0.15, 0.15, 0.4);
+  
+  // Create upper and lower eyelids
+  const upperLidGeometry = new THREE.PlaneGeometry(3.5, 2);
+  const lowerLidGeometry = new THREE.PlaneGeometry(3.5, 2);
+  const lidMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffddcc, // Match face color
+    side: THREE.DoubleSide
+  });
+  
+  const upperLid = new THREE.Mesh(upperLidGeometry, lidMaterial);
+  upperLid.position.set(0, 1.8, 0.5);
+  eyeGroup.add(upperLid);
+  
+  const lowerLid = new THREE.Mesh(lowerLidGeometry, lidMaterial);
+  lowerLid.position.set(0, -1.8, 0.5);
+  eyeGroup.add(lowerLid);
+  
+  // Add expressive eyebrow
+  const eyebrowGeometry = new THREE.PlaneGeometry(1.8, 0.3);
+  const eyebrowMaterial = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    side: THREE.DoubleSide
+  });
+  const eyebrow = new THREE.Mesh(eyebrowGeometry, eyebrowMaterial);
+  eyebrow.position.set(0, 1.7, 0.5);
+  eyeGroup.add(eyebrow);
+  
+  // Group for iris and pupil movement
+  const pupilGroup = new THREE.Group();
+  pupilGroup.add(iris);
+  pupilGroup.add(pupil);
+  pupilGroup.add(highlight);
+  eyeGroup.add(pupilGroup);
+  
+  return {
+    eyeGroup,
+    pupilGroup,
+    upperLid,
+    lowerLid,
+    eyebrow,
+    pupil
+  };
+}
+
+// Create left and right eyes
+const leftEye = createEye(-2.5);
+const rightEye = createEye(2.5);
+
+// Mouse movement tracking
+let mouseX = 0;
+let mouseY = 0;
+const maxEyeMovement = 0.4; // Limit how far the eyes can move
+
+function onDocumentMouseMove(event) {
+  // Get mouse position relative to canvas center
+  mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+  mouseY = -((event.clientY / window.innerHeight) * 2 - 1);
+  
+  // Calculate target positions with limits
+  const targetX = Math.max(Math.min(mouseX * maxEyeMovement, maxEyeMovement), -maxEyeMovement);
+  const targetY = Math.max(Math.min(mouseY * maxEyeMovement, maxEyeMovement), -maxEyeMovement);
+  
+  // Update target position for smooth movement in animation loop
+  targetPosition.x = targetX;
+  targetPosition.y = targetY;
+}
+
+document.addEventListener('mousemove', onDocumentMouseMove, false);
+
+// Handle window resizing
+function onWindowResize() {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  // Update camera based on new aspect ratio
+  const aspect = window.innerWidth / window.innerHeight;
+  const frustumHeight = 6;
+  const frustumWidth = frustumHeight * aspect;
+  camera.left = -frustumWidth / 2;
+  camera.right = frustumWidth / 2;
+  camera.top = frustumHeight / 2;
+  camera.bottom = -frustumHeight / 2;
+  camera.updateProjectionMatrix();
+}
+
+window.addEventListener('resize', onWindowResize, false);
+
+// Blinking animation
+let isBlinking = false;
+let blinkProgress = 0;
+let blinkDirection = 1;
+const blinkDuration = 15; // frames for a complete blink
+const blinkInterval = 150; // avg frames between blinks
+let framesSinceLastBlink = 0;
+
+function updateBlink() {
+  framesSinceLastBlink++;
+  
+  // Random chance to start blinking
+  if (!isBlinking && framesSinceLastBlink > blinkInterval && Math.random() < 0.01) {
+    isBlinking = true;
+    blinkProgress = 0;
+    blinkDirection = 1;
+    framesSinceLastBlink = 0;
+  }
+  
+  if (isBlinking) {
+    blinkProgress += blinkDirection;
+    
+    // Control the eyelids movement
+    const lidPosition = Math.min(blinkProgress / blinkDuration, 1);
+    
+    // Update both eyes
+    leftEye.upperLid.position.y = 1.8 - (lidPosition * 1.8);
+    leftEye.lowerLid.position.y = -1.8 + (lidPosition * 1.8);
+    rightEye.upperLid.position.y = 1.8 - (lidPosition * 1.8);
+    rightEye.lowerLid.position.y = -1.8 + (lidPosition * 1.8);
+    
+    // Change direction once we reach halfway
+    if (blinkProgress >= blinkDuration / 2 && blinkDirection > 0) {
+      blinkDirection = -1;
+    }
+    
+    // End blinking
+    if (blinkProgress <= 0 && blinkDirection < 0) {
+      isBlinking = false;
+      leftEye.upperLid.position.y = 1.8;
+      leftEye.lowerLid.position.y = -1.8;
+      rightEye.upperLid.position.y = 1.8;
+      rightEye.lowerLid.position.y = -1.8;
+    }
+  }
+}
+
+// Set up expressions
+let currentMood = 'neutral';
+const moods = ['neutral', 'surprised', 'angry', 'happy', 'sad', 'suspicious'];
+let moodTimer = 0;
+const moodDuration = 180; // How long to hold an expression
+
+function randomExpression() {
+  moodTimer++;
+  
+  // Change expression randomly
+  if (moodTimer >= moodDuration && Math.random() < 0.05) {
+    const newMood = moods[Math.floor(Math.random() * moods.length)];
+    setExpression(newMood);
+    moodTimer = 0;
+  }
+}
+
+function setExpression(mood) {
+  currentMood = mood;
+  
+  // Reset eyebrow positions
+  leftEye.eyebrow.rotation.z = 0;
+  leftEye.eyebrow.position.y = 1.7;
+  rightEye.eyebrow.rotation.z = 0;
+  rightEye.eyebrow.position.y = 1.7;
+  
+  // Reset pupil sizes
+  leftEye.pupil.scale.set(1, 1, 1);
+  rightEye.pupil.scale.set(1, 1, 1);
+  
+  // Apply the selected mood to both eyes
+  switch(mood) {
+    case 'surprised':
+      leftEye.eyebrow.position.y = 2.1;
+      rightEye.eyebrow.position.y = 2.1;
+      leftEye.pupil.scale.set(0.7, 0.7, 1);
+      rightEye.pupil.scale.set(0.7, 0.7, 1);
+      break;
+    case 'angry':
+      leftEye.eyebrow.rotation.z = 0.2;
+      leftEye.eyebrow.position.y = 1.5;
+      rightEye.eyebrow.rotation.z = -0.2;
+      rightEye.eyebrow.position.y = 1.5;
+      break;
+    case 'happy':
+      leftEye.eyebrow.position.y = 1.9;
+      rightEye.eyebrow.position.y = 1.9;
+      // Make eyes slightly squinted
+      leftEye.upperLid.position.y = 1.6;
+      leftEye.lowerLid.position.y = -1.6;
+      rightEye.upperLid.position.y = 1.6;
+      rightEye.lowerLid.position.y = -1.6;
+      break;
+    case 'sad':
+      leftEye.eyebrow.rotation.z = -0.2;
+      leftEye.eyebrow.position.y = 1.6;
+      rightEye.eyebrow.rotation.z = 0.2;
+      rightEye.eyebrow.position.y = 1.6;
+      break;
+    case 'suspicious':
+      // Raise one eyebrow
+      leftEye.eyebrow.position.y = 1.7;
+      rightEye.eyebrow.position.y = 2.0;
+      rightEye.eyebrow.rotation.z = -0.1;
+      break;
+    default: // neutral
+      // Reset lids to normal position (in case coming from happy)
+      leftEye.upperLid.position.y = 1.8;
+      leftEye.lowerLid.position.y = -1.8;
+      rightEye.upperLid.position.y = 1.8;
+      rightEye.lowerLid.position.y = -1.8;
+  }
+}
+
+// Set initial expression
+setExpression('neutral');
+
+// Create smooth eye movement
+const targetPosition = new THREE.Vector2(0, 0);
+const currentPosition = new THREE.Vector2(0, 0);
+const smoothingFactor = 0.1;
+
+// Animation loop
+function animate() {
+  requestAnimationFrame(animate);
+  
+  // Smooth eye movement
+  currentPosition.x += (targetPosition.x - currentPosition.x) * smoothingFactor;
+  currentPosition.y += (targetPosition.y - currentPosition.y) * smoothingFactor;
+  
+  // Apply position to both eyes (with slight cross-eyed effect at close distances)
+  const distance = Math.sqrt(currentPosition.x * currentPosition.x + currentPosition.y * currentPosition.y);
+  const crossEyeFactor = Math.min(distance * 0.2, 0.1);
+  
+  leftEye.pupilGroup.position.x = currentPosition.x - crossEyeFactor;
+  leftEye.pupilGroup.position.y = currentPosition.y;
+  
+  rightEye.pupilGroup.position.x = currentPosition.x - crossEyeFactor;
+  rightEye.pupilGroup.position.y = currentPosition.y;
+  
+  // Update animations
+  updateBlink();
+  randomExpression();
+  
+  renderer.render(scene, camera);
+}
+
+// Add ability to click to change expressions manually
+document.addEventListener('click', function() {
+  const randomMood = moods[Math.floor(Math.random() * moods.length)];
+  setExpression(randomMood);
+  moodTimer = 0;
+});
+
+animate();
+    </script>
+</body>
+</html>
